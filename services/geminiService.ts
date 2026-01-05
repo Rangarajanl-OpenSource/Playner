@@ -3,19 +3,40 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AnalogyQuestion } from "../types";
 import { ENABLE_API_CACHE, ENABLE_CLOUD_STORAGE, PRECOMPUTED_STORE, KOALA_GUIDE_PROMPT } from "../constants";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Fix: Initialize GoogleGenAI with exactly the named parameter pattern required by the guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 function getCacheKey(familiar: string, complex: string, goal: string): string {
-  const slug = `${familiar}_${complex}_${goal}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  return slug;
+  // Normalize strings for the slug to increase hit rate
+  const f = familiar.toLowerCase().trim().split(' ')[0]; // Use first word (e.g., 'nfl' from 'NFL / Football')
+  const c = complex.toLowerCase().trim().split(' ')[0];
+  const g = goal.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+  return `${f}_${c}_${g}`;
+}
+
+/**
+ * Shuffles an array and returns the shuffled array along with the new index of the previously known item.
+ */
+function shuffleOptions(options: string[], correctAnswer: string): { shuffled: string[], newCorrect: string } {
+  const shuffled = [...options];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return { shuffled, newCorrect: correctAnswer };
 }
 
 async function fetchFromCloud(key: string): Promise<AnalogyQuestion[] | null> {
   if (!ENABLE_CLOUD_STORAGE) return null;
-  await new Promise(r => setTimeout(r, 400));
+  
+  // If we have a match, return IMMEDIATELY to accelerate loading
   if (PRECOMPUTED_STORE[key]) {
+    console.log(`[Playner Cloud] Cache Hit: ${key}`);
     return PRECOMPUTED_STORE[key];
   }
+  
+  // Simulation delay only for real API fetches or misses
+  await new Promise(r => setTimeout(r, 800));
   return null;
 }
 
@@ -37,14 +58,29 @@ export async function generateAnalogyQuestions(
     if (cached) return JSON.parse(cached);
   }
 
+  // Check Cloud Store (Precomputed Library)
   const cloudData = await fetchFromCloud(slug);
   if (cloudData) {
     if (ENABLE_API_CACHE) localStorage.setItem(localKey, JSON.stringify(cloudData));
     return cloudData;
   }
 
-  const prompt = `Generate 6 interactive quiz questions for "Playner". 
-  MISSION: "${goal}". Familiar: "${familiar}". Complex: "${complex}".
+  const prompt = `Generate 6 interactive "Bridge Analogy" quiz questions for the app "Playner".
+  
+  MISSION GOAL: "${goal}"
+  FAMILIAR DOMAIN: "${familiar}" (The user knows this well)
+  COMPLEX SUBJECT: "${complex}" (The user wants to learn this)
+
+  STRICT CONTENT RULES:
+  1. Questions 1-5 MUST be "Bridge Questions". Every bridge question MUST start by describing a specific concept or scenario from the FAMILIAR domain (${familiar}) and then ask how it maps to the COMPLEX subject (${complex}). 
+     Example: "In Tic-Tac-Toe, a 'Center Move' controls the board's most valuable real estate. In the Stock Market, what represents the most stable 'real estate' for an investor's portfolio?"
+  2. Question 6 is the "Final Challenge". It should be a direct application of the COMPLEX subject to test mastery.
+  3. DO NOT generate questions that only mention the complex domain. Use the familiar domain as a mental scaffold for every bridge question.
+  
+  CORRECT ANSWER RANDOMIZATION:
+  - Assign the correct answer to index 0, 1, 2, or 3. 
+  - Ensure a perfectly even distribution.
+
   Return JSON with: id, question, familiarConcept, complexConcept, options, correctAnswer, explanation, fact, imagePrompt.`;
 
   const response = await ai.models.generateContent({
@@ -74,13 +110,21 @@ export async function generateAnalogyQuestions(
   });
 
   try {
-    const questions = JSON.parse(response.text || "[]");
-    if (questions.length > 0) {
-      if (ENABLE_API_CACHE) localStorage.setItem(localKey, JSON.stringify(questions));
-      await saveToCloud(slug, questions);
+    const rawQuestions = JSON.parse(response.text || "[]");
+    
+    // Manual post-processing shuffle to guarantee 100% distribution across A/B/C/D
+    const processedQuestions = rawQuestions.map((q: AnalogyQuestion) => {
+      const { shuffled, newCorrect } = shuffleOptions(q.options, q.correctAnswer);
+      return { ...q, options: shuffled, correctAnswer: newCorrect };
+    });
+
+    if (processedQuestions.length > 0) {
+      if (ENABLE_API_CACHE) localStorage.setItem(localKey, JSON.stringify(processedQuestions));
+      await saveToCloud(slug, processedQuestions);
     }
-    return questions;
+    return processedQuestions;
   } catch (error) {
+    console.error("Failed to parse Gemini response", error);
     return [];
   }
 }
@@ -95,7 +139,7 @@ export async function generateConceptImage(prompt: string): Promise<string | nul
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
-      parts: [{ text: `A clean, educational illustration. Minimalist vector style. Subject: ${prompt}` }]
+      parts: [{ text: `A clean, educational illustration for a learning app. Subject: ${prompt}` }]
     },
     config: { imageConfig: { aspectRatio: "16:9" } }
   });
