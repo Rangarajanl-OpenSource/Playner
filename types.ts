@@ -8,6 +8,8 @@ export interface AnalogyQuestion {
   correctAnswer: string;
   explanation: string;
   fact: string;
+  imagePrompt: string;
+  imageUrl?: string;
 }
 
 export interface DomainOption {
@@ -15,6 +17,7 @@ export interface DomainOption {
   label: string;
   icon: string;
   description: string;
+  suggestedGoals?: string[];
 }
 
 export enum GameState {
@@ -30,6 +33,7 @@ export enum GameState {
 export interface GameSession {
   familiarDomain: DomainOption | null;
   complexDomain: DomainOption | null;
+  goal: string;
   questions: AnalogyQuestion[];
   currentIndex: number;
   score: number;
