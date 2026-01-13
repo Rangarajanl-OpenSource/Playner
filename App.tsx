@@ -1,404 +1,105 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GoogleGenAI, Modality } from "@google/genai";
-import { GameState, GameSession, DomainOption, AnalogyQuestion } from './types';
-import { FAMILIAR_DOMAINS, COMPLEX_DOMAINS, ENABLE_CLOUD_STORAGE, ENABLE_ANALYTICS } from './constants';
-import { generateAnalogyQuestions, editMascotImage, generateInitialMascot, generateConceptImage, getKoalaGuide } from './services/geminiService';
-import { analytics, AnalyticsEvent } from './services/analyticsService';
+import React, { useState, useEffect, useRef } from 'react';
+import { GameState, GameSession, DomainOption, MissionData, NeuralModule, ModuleStep } from './types';
+import { FAMILIAR_CATEGORIES, COMPLEX_CATEGORIES } from './constants';
+import { generateMission } from './services/geminiService';
 import Button from './components/Button';
 
-// --- Audio Decoding Helpers ---
-function decodeBase64(base64: string) {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
+const useSmoothScrollTop = (trigger: any) => {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [trigger]);
+};
 
-async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+const FloatingXP: React.FC<{ x: number, y: number }> = ({ x, y }) => (
+  <div className="fixed pointer-events-none z-[250] font-black text-indigo-500 text-3xl animate-bounce" style={{ left: x, top: y }}>
+    +150 XP 🧬
+  </div>
+);
+
+const LaserPanda: React.FC<{ status: 'idle' | 'scanning' | 'correct' | 'incorrect' }> = ({ status }) => {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (status !== 'idle') {
+      setVisible(true);
+      const timer = setTimeout(() => { if(status === 'correct' || status === 'incorrect') setVisible(false); }, 3000);
+      return () => clearTimeout(timer);
     }
-  }
-  return buffer;
-}
-
-// Analytics Dashboard Component
-const AnalyticsDashboard: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const [events, setEvents] = useState<AnalyticsEvent[]>([]);
-
-  useEffect(() => {
-    const update = () => setEvents(analytics.getEvents());
-    update();
-    window.addEventListener('playner_analytics_updated', update);
-    return () => window.removeEventListener('playner_analytics_updated', update);
-  }, []);
-
-  if (!isOpen) return null;
-
+  }, [status]);
+  if (!visible) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-slate-900 text-slate-300 shadow-2xl flex flex-col animate-in slide-in-from-right-full duration-500">
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              Metadata Stream
-            </h2>
-            <p className="text-xs text-slate-500 font-mono">Capture Node: Playner-v1.0</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">✕</button>
+    <div className="fixed bottom-12 right-12 z-[100] section-enter">
+      <div className="relative">
+        <div className={`text-8xl filter drop-shadow-2xl ${status === 'scanning' ? 'animate-bounce' : 'float'}`}>🦊</div>
+        <div className="absolute -top-20 -left-40 bg-white p-5 rounded-3xl shadow-2xl border-4 border-indigo-50 font-black text-sm w-56 text-center -rotate-2">
+          {status === 'scanning' && "🧬 ANALYZING SYNAPSES..."}
+          {status === 'correct' && "🌿 NEURAL PATH STABLE!"}
+          {status === 'incorrect' && "⚠️ SIGNAL COLLISION..."}
         </div>
-        <div className="flex-1 overflow-y-auto p-4 font-mono text-[11px] space-y-3">
-          {events.length === 0 && <div className="text-slate-600 italic">No events recorded yet. Start a mission!</div>}
-          {events.map(event => (
-            <div key={event.id} className="bg-slate-800/50 p-3 rounded border border-slate-700/50 hover:border-indigo-500/50 transition-colors group">
-              <div className="flex justify-between mb-1">
-                <span className="text-indigo-400 font-bold">[{event.name}]</span>
-                <span className="text-slate-500">{new Date(event.timestamp).toLocaleTimeString()}</span>
+      </div>
+    </div>
+  );
+};
+
+const MissionMap: React.FC<{ session: GameSession; onProceed: () => void }> = ({ session, onProceed }) => {
+  const modules = session.mission?.modules || [];
+  return (
+    <div className="py-16 max-w-4xl mx-auto text-center section-enter">
+      <div className="inline-block px-8 py-3 bg-white/80 backdrop-blur rounded-full shadow-xl border border-indigo-100 mb-16">
+        <h2 className="text-2xl font-black tracking-tight text-slate-700">Exploration Trail: <span className="text-indigo-600">{session.complexDomain?.label}</span></h2>
+      </div>
+      <div className="relative neural-path p-10 rounded-[4rem] border border-slate-200 bg-white/30">
+        <div className="flex flex-col items-center gap-24 relative">
+          <div className="w-28 h-28 bg-white rounded-[2rem] flex items-center justify-center text-5xl shadow-[0_12px_0_#e2e8f0] border-4 border-indigo-600 text-indigo-600">📡</div>
+          {modules.map((m, i) => {
+            const isCompleted = i < session.currentIndex;
+            const isActive = i === session.currentIndex;
+            return (
+              <div key={m.id} className={`flex items-center gap-12 ${i % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}>
+                <div className="relative isometric-node">
+                  {isActive && <div className="pulse-ring w-36 h-36 -top-2 -left-2"></div>}
+                  <div className={`w-32 h-32 rounded-[2.5rem] flex items-center justify-center text-5xl border-4 ${isCompleted ? 'bg-indigo-600 border-indigo-400 text-white shadow-[0_10px_0_#4338ca]' : isActive ? 'bg-white border-indigo-600 text-indigo-600 animate-pulse' : 'bg-slate-50 border-slate-200 text-slate-300'}`}>
+                    {isCompleted ? '✅' : isActive ? '🌱' : '🔒'}
+                  </div>
+                </div>
+                <div className="text-left w-48">
+                  <h4 className={`font-black text-[10px] uppercase tracking-[0.2em] mb-1 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`}>Set {i+1}</h4>
+                  <p className={`font-bold leading-tight ${isActive ? 'text-slate-800 text-xl' : 'text-slate-300'}`}>{m.conceptName}</p>
+                </div>
               </div>
-              <div className="text-slate-400 break-all bg-black/20 p-2 rounded mt-1">
-                {JSON.stringify(event.properties, null, 2)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
+          <div className={`w-40 h-40 rounded-full flex items-center justify-center text-7xl shadow-2xl ${session.currentIndex >= modules.length ? 'bg-amber-400 shadow-[0_15px_0_#d97706] scale-110' : 'bg-slate-100 text-slate-200 border-4 border-slate-200'}`}>🏆</div>
         </div>
       </div>
+      <Button onClick={onProceed} size="lg" className="mt-20 w-full max-w-sm h-24 text-2xl rounded-full">
+        {session.currentIndex === 0 ? "Initialize Scout" : "Synchronize Next Set"}
+      </Button>
     </div>
   );
 };
 
-// Bridge Map Component
-const BridgeMap: React.FC<{ current: number; total: number; familiar: string; complex: string }> = ({ current, total, familiar, complex }) => {
-  return (
-    <div className="w-full bg-indigo-50/50 p-4 rounded-3xl mb-8 border border-indigo-100/50 shadow-inner">
-      <div className="flex justify-between items-center px-2 mb-2">
-        <div className="flex flex-col items-center">
-          <span className="text-2xl">🏡</span>
-          <span className="text-[10px] font-bold uppercase tracking-tighter text-indigo-400">{familiar}</span>
-        </div>
-        <div className="flex-1 flex justify-center gap-2 px-6">
-          {Array.from({ length: total }).map((_, i) => (
-            <div 
-              key={i} 
-              className={`h-4 flex-1 rounded-full transition-all duration-500 ${
-                i < current ? 'bg-indigo-500 shadow-md translate-y-[-2px]' : 
-                i === current ? 'bg-indigo-200 animate-pulse border-2 border-indigo-400' : 'bg-slate-200'
-              }`}
-            />
-          ))}
-        </div>
-        <div className="flex flex-col items-center">
-          <span className="text-2xl">🚀</span>
-          <span className="text-[10px] font-bold uppercase tracking-tighter text-slate-400">{complex}</span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Screens
-const HomeScreen: React.FC<{ onStart: () => void; onCustomize: () => void }> = ({ onStart, onCustomize }) => {
+const WordSync: React.FC<{ familiar: string[]; complex: string[]; onComplete: () => void }> = ({ familiar, complex, onComplete }) => {
+  const [progress, setProgress] = useState(0);
   useEffect(() => {
-    analytics.track("page_view", { screen: "home" });
-  }, []);
-
+    const interval = setInterval(() => setProgress(p => Math.min(p + (100 / 50), 100)), 100);
+    const timer = setTimeout(onComplete, 5000);
+    return () => { clearInterval(interval); clearTimeout(timer); };
+  }, [onComplete]);
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
-      <div className="relative mb-8">
-        <div className="w-24 h-24 bg-indigo-600 rounded-3xl flex items-center justify-center text-4xl shadow-xl float">🧠</div>
-        <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-amber-400 rounded-full flex items-center justify-center text-xl shadow-lg">✨</div>
-      </div>
-      <h1 className="text-5xl font-bold mb-4 text-slate-900 tracking-tight">Playner</h1>
-      <p className="text-xl text-slate-600 mb-10 max-w-md font-medium">Learn new ideas by playing what you already know. Master complex concepts through playful analogies.</p>
-      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-        <Button onClick={onStart} size="lg" className="w-full">Start a Mission</Button>
-        <Button onClick={onCustomize} size="lg" variant="outline" className="w-full">Create Mascot</Button>
-      </div>
-    </div>
-  );
-};
-
-const SetupScreen: React.FC<{ onConfirm: (f: DomainOption, c: DomainOption, g: string) => void; onBack: () => void; }> = ({ onConfirm, onBack }) => {
-  const [familiar, setFamiliar] = useState<DomainOption | null>(null);
-  const [complex, setComplex] = useState<DomainOption | null>(null);
-  const [goal, setGoal] = useState<string>("");
-  const [step, setStep] = useState(1);
-
-  const handleFinish = () => {
-    if (familiar && complex && goal) {
-      analytics.track("mission_config_confirmed", { familiar: familiar.label, complex: complex.label, goal });
-      onConfirm(familiar, complex, goal);
-    }
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold mb-2">Build Your Analogy</h2>
-        <div className="flex justify-center gap-2 mt-4">
-           {[1, 2, 3].map(s => (
-             <div key={s} className={`h-2 w-12 rounded-full transition-all duration-300 ${step >= s ? 'bg-indigo-600' : 'bg-slate-200'}`} />
-           ))}
+    <div className="fixed inset-0 bg-[#0f172a] z-[300] flex flex-col items-center justify-center p-12">
+      <div className="grid grid-cols-2 gap-40 w-full max-w-6xl">
+        <div className="flex flex-wrap gap-5 justify-center">
+          {familiar.map((w, i) => <span key={i} className={`px-8 py-4 rounded-3xl font-black text-2xl transition-all duration-1000 ${progress > 30 ? 'opacity-20 blur-sm' : 'bg-white text-indigo-600 shadow-2xl'}`}>{w}</span>)}
+        </div>
+        <div className="flex flex-wrap gap-5 justify-center">
+          {complex.map((w, i) => <span key={i} className={`px-8 py-4 rounded-3xl font-black text-2xl transition-all duration-1000 ${progress > 30 ? 'bg-white text-emerald-600 scale-110 shadow-2xl' : 'opacity-0'}`}>{w}</span>)}
         </div>
       </div>
-
-      {step === 1 && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 text-center">Step 1: Choose what you already know</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FAMILIAR_DOMAINS.map(d => (
-              <div key={d.id} onClick={() => { setFamiliar(d); setStep(2); }} className={`p-6 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center gap-2 ${familiar?.id === d.id ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 bg-white hover:border-slate-300'}`}>
-                <span className="text-4xl mb-2">{d.icon}</span>
-                <div className="font-bold text-slate-800 text-lg">{d.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-          <button onClick={() => setStep(1)} className="text-indigo-600 font-bold text-sm mb-4 hover:underline">← Change Starting Point</button>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4 text-center">Step 2: Choose what you want to learn</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {COMPLEX_DOMAINS.map(d => (
-              <div key={d.id} onClick={() => { setComplex(d); setStep(3); }} className={`p-6 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center gap-2 ${complex?.id === d.id ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 bg-white hover:border-slate-300'}`}>
-                <span className="text-4xl mb-2">{d.icon}</span>
-                <div className="font-bold text-slate-800 text-lg">{d.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="max-w-md mx-auto animate-in fade-in zoom-in duration-500">
-          <button onClick={() => setStep(2)} className="text-indigo-600 font-bold text-sm mb-4 hover:underline">← Change Subject</button>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Step 3: Define your Mission Goal</h3>
-          <div className="space-y-3 mb-8">
-            {complex?.suggestedGoals?.map((suggested, idx) => (
-              <button key={idx} onClick={() => setGoal(suggested)} className={`w-full p-4 rounded-xl border-2 text-left transition-all ${goal === suggested ? 'border-indigo-600 bg-indigo-50 font-bold' : 'border-slate-100 bg-white hover:bg-slate-50'}`}>{suggested}</button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-12 flex justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100 sticky bottom-4">
-        <Button variant="ghost" onClick={onBack}>Cancel</Button>
-        <Button variant="primary" disabled={!familiar || !complex || !goal} onClick={handleFinish}>Start Quiz</Button>
+      <div className="w-[500px] mt-20 h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-full bg-indigo-500" style={{width: `${progress}%`}}></div>
       </div>
-    </div>
-  );
-};
-
-const QuizScreen: React.FC<{ 
-  question: AnalogyQuestion;
-  index: number;
-  total: number;
-  goal: string;
-  familiarIcon: string;
-  onAnswer: (answer: string) => void;
-  onImageGenerated: (url: string) => void;
-}> = ({ question, index, total, goal, familiarIcon, onAnswer, onImageGenerated }) => {
-  const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isImageLoading, setIsImageLoading] = useState(false);
-  const [koalaUrl, setKoalaUrl] = useState<string | null>(null);
-  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  useEffect(() => {
-    getKoalaGuide().then(setKoalaUrl);
-    setSelectedOpt(null);
-    setIsSubmitted(false);
-  }, [index]);
-
-  useEffect(() => {
-    if (question.imagePrompt && !question.imageUrl) {
-      setIsImageLoading(true);
-      generateConceptImage(question.imagePrompt).then(url => {
-        if (url) onImageGenerated(url);
-        setIsImageLoading(false);
-      });
-    }
-  }, [question.id]);
-
-  const handleConfirmSubmit = () => {
-    if (!selectedOpt || isSubmitted) return;
-    setIsSubmitted(true);
-    setTimeout(() => onAnswer(selectedOpt), 1800);
-  };
-
-  const correctIdx = question.options.indexOf(question.correctAnswer);
-  const correctBtn = optionRefs.current[correctIdx];
-
-  return (
-    <div className="max-w-2xl mx-auto py-12 px-4 relative pb-32">
-      <BridgeMap 
-        current={index} 
-        total={total} 
-        familiar={familiarIcon} 
-        complex="🏆" 
-      />
-
-      <div className="mb-6 relative aspect-video bg-slate-100 rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-sm">
-        {isImageLoading && <div className="absolute inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}
-        {question.imageUrl && <img src={question.imageUrl} className="w-full h-full object-cover animate-in fade-in" />}
-      </div>
-
-      <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border-2 mb-8 relative overflow-hidden">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6 leading-relaxed relative z-10">{question.question}</h2>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 relative mb-12">
-        {question.options.map((opt, i) => (
-          <button
-            key={i}
-            // Fix: Wrapping the ref callback in braces ensures it returns void, fixing the TS error.
-            ref={el => { optionRefs.current[i] = el; }}
-            disabled={isSubmitted}
-            onClick={() => setSelectedOpt(opt)}
-            className={`p-6 text-left rounded-2xl border-2 transition-all font-semibold text-slate-700 shadow-sm flex items-center gap-4 ${
-              selectedOpt === opt ? 'border-indigo-600 bg-indigo-50 scale-[1.02]' : 'border-slate-100 bg-white hover:border-indigo-400'
-            }`}
-          >
-            <span className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedOpt === opt ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{String.fromCharCode(65 + i)}</span>
-            {opt}
-          </button>
-        ))}
-
-        {isSubmitted && koalaUrl && correctBtn && (
-          <div className="absolute -left-20 top-1/2 -translate-y-1/2 w-48 h-48 animate-in slide-in-from-left-20 fade-in duration-500 z-50 pointer-events-none">
-            <img src={koalaUrl} className="w-full h-full object-contain" />
-            <svg className="absolute top-0 left-0 w-full h-full" style={{ overflow: 'visible' }}>
-              <line x1="80%" y1="50%" x2="150%" y2={`${(correctIdx - (question.options.length/2)) * 80 + 100}%`} stroke="rgba(99, 102, 241, 0.8)" strokeWidth="4" strokeLinecap="round" className="animate-pulse" />
-            </svg>
-          </div>
-        )}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t z-[40] flex justify-center">
-        <Button onClick={handleConfirmSubmit} disabled={!selectedOpt || isSubmitted} isLoading={isSubmitted} size="lg" className="w-full max-w-sm">
-          {isSubmitted ? "Analyzing Bridge..." : "Confirm Choice"}
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const RevealScreen: React.FC<{
-  question: AnalogyQuestion;
-  selectedAnswer: string;
-  onNext: () => void;
-}> = ({ question, selectedAnswer, onNext }) => {
-  const isCorrect = selectedAnswer === question.correctAnswer;
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-
-  useEffect(() => {
-    // Speak the explanation using Gemini TTS
-    const speakExplanation = async () => {
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        setIsSpeaking(true);
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash-preview-tts",
-          contents: [{ parts: [{ text: `Say encouragingly: ${isCorrect ? "Spot on!" : "Not quite, but here is the bridge."} ${question.explanation}` }] }],
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-          },
-        });
-
-        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (base64Audio) {
-          if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-          const audioBuffer = await decodeAudioData(decodeBase64(base64Audio), audioContextRef.current, 24000, 1);
-          const source = audioContextRef.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContextRef.current.destination);
-          source.onended = () => setIsSpeaking(false);
-          source.start();
-        } else {
-          setIsSpeaking(false);
-        }
-      } catch (e) {
-        console.error("TTS failed", e);
-        setIsSpeaking(false);
-      }
-    };
-    speakExplanation();
-  }, [isCorrect, question.explanation]);
-
-  return (
-    <div className="max-w-2xl mx-auto py-12 px-4 text-center animate-in fade-in zoom-in">
-      <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center text-5xl mb-6 shadow-lg ${isCorrect ? 'bg-green-100' : 'bg-rose-100'}`}>{isCorrect ? '✅' : '❌'}</div>
-      <h2 className="text-4xl font-bold mb-2">{isCorrect ? 'Correct!' : 'Almost There!'}</h2>
-      <p className="text-slate-500 mb-8">The correct answer was: <span className="text-indigo-600 font-bold">{question.correctAnswer}</span></p>
-
-      <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border text-left mb-8 relative">
-        <div className="flex items-center gap-2 mb-4">
-           <div className={`w-3 h-3 rounded-full ${isSpeaking ? 'bg-indigo-500 animate-ping' : 'bg-slate-300'}`}></div>
-           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mentor Insight</span>
-        </div>
-        <p className="text-lg text-slate-700 leading-relaxed italic mb-6">"{question.explanation}"</p>
-        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100"><p className="text-amber-800 text-sm font-medium"><span className="font-bold mr-2 uppercase">Pro Tip:</span> {question.fact}</p></div>
-      </div>
-
-      <Button onClick={onNext} size="lg" className="w-full">Continue Mission</Button>
-    </div>
-  );
-};
-
-const SummaryScreen: React.FC<{ session: GameSession; onReset: () => void }> = ({ session, onReset }) => {
-  return (
-    <div className="max-w-2xl mx-auto py-12 px-4 text-center">
-      <div className="text-9xl mb-4">🏆</div>
-      <h1 className="text-4xl font-bold mb-2">Mission Accomplished!</h1>
-      <p className="text-slate-500 font-medium px-4 mb-10 italic">"I now understand how to {session.goal.toLowerCase()}!"</p>
-      <div className="grid grid-cols-2 gap-4 mb-10">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><div className="text-sm font-bold text-slate-400">Score</div><div className="text-4xl font-bold text-indigo-600">{session.score}/{session.questions.length}</div></div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100"><div className="text-sm font-bold text-slate-400">Yield</div><div className="text-4xl font-bold text-amber-500">{Math.round((session.score/session.questions.length)*100)}%</div></div>
-      </div>
-      <Button onClick={onReset} size="lg" className="w-full">New Mission</Button>
-    </div>
-  );
-};
-
-const MascotScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const [mascotUrl, setMascotUrl] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleCreate = async () => {
-    if (!prompt) return;
-    setIsLoading(true);
-    const url = await generateInitialMascot(prompt);
-    setMascotUrl(url);
-    setIsLoading(false);
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto py-12 px-4 text-center">
-      <div className="flex items-center gap-4 mb-8"><Button variant="ghost" onClick={onBack}>← Back</Button><h2 className="text-3xl font-bold">Design Your Mascot</h2></div>
-      <div className="bg-white p-8 rounded-[3rem] shadow-sm border mb-8">
-        {!mascotUrl ? <div className="aspect-square bg-slate-100 rounded-[2.5rem] flex items-center justify-center border-4 border-dashed mb-6 text-slate-400">Your creation will appear here</div> : <img src={mascotUrl} className="w-full aspect-square object-cover rounded-[2.5rem] mb-6 shadow-xl" />}
-        {!mascotUrl ? (
-          <div className="space-y-4">
-            <input type="text" placeholder="e.g. A robotic brain wearing sunglasses..." className="w-full p-4 rounded-2xl bg-slate-50 border-2 outline-none" value={prompt} onChange={e => setPrompt(e.target.value)} />
-            <Button onClick={handleCreate} isLoading={isLoading} className="w-full">Generate Mascot</Button>
-          </div>
-        ) : <Button onClick={() => setMascotUrl(null)} variant="outline">New Mascot</Button>}
-      </div>
-      <Button onClick={onBack} variant="primary" className="w-full">Finish Designing</Button>
+      <div className="mt-8 text-white font-black text-sm uppercase tracking-[0.5em] animate-pulse">Mapping Cognitive Overlap...</div>
     </div>
   );
 };
@@ -406,85 +107,242 @@ const MascotScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 export default function App() {
   const [state, setState] = useState<GameState>(GameState.HOME);
   const [loading, setLoading] = useState(false);
-  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [xp, setXp] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [mascotStatus, setMascotStatus] = useState<'idle' | 'scanning' | 'correct' | 'incorrect'>('idle');
+  const [floatingXp, setFloatingXp] = useState<{x:number, y:number}[]>([]);
   const [session, setSession] = useState<GameSession>({
-    familiarDomain: null,
-    complexDomain: null,
-    goal: "",
-    questions: [],
-    currentIndex: 0,
-    score: 0,
-    history: []
+    familiarDomain: null, complexDomain: null, goal: "", mission: null, currentIndex: 0, score: 0
   });
-  const [lastSelectedAnswer, setLastSelectedAnswer] = useState<string>('');
+
+  useSmoothScrollTop(state + (session.currentIndex * 10));
 
   const setupGame = async (f: DomainOption, c: DomainOption, g: string) => {
     setLoading(true);
-    const questions = await generateAnalogyQuestions(f.label, c.label, g);
-    if (questions.length > 0) {
-      setSession({ familiarDomain: f, complexDomain: c, goal: g, questions, currentIndex: 0, score: 0, history: [] });
-      setState(GameState.QUIZ);
+    try {
+      const mission = await generateMission(f.label, c.label, g);
+      setSession({ familiarDomain: f, complexDomain: c, goal: g, mission, currentIndex: 0, score: 0 });
+      setState(GameState.MAP);
+    } catch (err) { alert("Neural sync failed."); } finally { setLoading(false); }
+  };
+
+  const handleAnswer = (correct: boolean, e: any) => {
+    if (correct) {
+      setSession(p => ({ ...p, score: p.score + 1 }));
+      setXp(p => p + 150);
+      setFloatingXp(prev => [...prev, { x: e.clientX, y: e.clientY }]);
+      setTimeout(() => setFloatingXp(p => p.slice(1)), 1000);
     }
-    setLoading(false);
+    
+    // 5-Step Logic
+    if (state === GameState.STEP_PRIME) setState(GameState.WORD_SYNC);
+    else if (state === GameState.STEP_BRIDGE) setState(GameState.STEP_INFER);
+    else if (state === GameState.STEP_INFER) setState(GameState.STEP_REINFORCE);
+    else if (state === GameState.STEP_REINFORCE) setState(GameState.STEP_CAPSTONE);
+    else if (state === GameState.STEP_CAPSTONE) setState(GameState.SYNTHESIS);
+    else if (state === GameState.FINAL_CHALLENGE) setState(GameState.SUMMARY);
   };
 
-  const submitAnswer = (answer: string) => {
-    setLastSelectedAnswer(answer);
-    const isCorrect = answer === session.questions[session.currentIndex].correctAnswer;
-    setSession(prev => ({
-      ...prev,
-      score: isCorrect ? prev.score + 1 : prev.score,
-      history: [...prev.history, { questionId: session.questions[session.currentIndex].id, answer, isCorrect }]
-    }));
-    setState(GameState.REVEAL);
+  const handleDownloadMission = () => {
+    if (!session.mission) return;
+    const missionDataStr = JSON.stringify(session.mission, null, 2);
+    const blob = new Blob([missionDataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Playner-Mission-${session.complexDomain?.label || 'Untitled'}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  const nextQuestion = () => {
-    if (session.currentIndex + 1 < session.questions.length) {
-      setSession(prev => ({ ...prev, currentIndex: prev.currentIndex + 1 }));
-      setState(GameState.QUIZ);
-    } else {
-      setState(GameState.SUMMARY);
-    }
-  };
-
-  const resetGame = () => {
-    setState(GameState.HOME);
-    setSession({ familiarDomain: null, complexDomain: null, goal: "", questions: [], currentIndex: 0, score: 0, history: [] });
-  };
+  const currentModule = session.mission?.modules[session.currentIndex];
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12 flex flex-col">
-      <AnalyticsDashboard isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} />
-      <nav className="p-4 md:px-8 flex items-center justify-between border-b bg-white/80 backdrop-blur sticky top-0 z-[60]">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={resetGame}>
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-md border-b-4 border-indigo-800">🧠</div>
-          <span className="brand-font text-2xl font-bold text-slate-800">Playner</span>
+    <div className="min-h-screen font-sans text-slate-900 pb-40">
+      <LaserPanda status={mascotStatus} />
+      {floatingXp.map((f, i) => <FloatingXP key={i} x={f.x} y={f.y} />)}
+      
+      <nav className="p-4 flex items-center justify-between bg-white/80 backdrop-blur-xl sticky top-0 z-[150] border-b-2 border-slate-100">
+        <div className="flex items-center gap-4 cursor-pointer" onClick={() => setState(GameState.HOME)}>
+          <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl">🧠</div>
+          <span className="brand-font text-3xl font-black">Playner</span>
         </div>
-        <div className="flex items-center gap-2">
-          {ENABLE_ANALYTICS && <button onClick={() => setIsAnalyticsOpen(true)} className="p-2 text-slate-400 hover:text-indigo-600">📊</button>}
-          <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden"><img src="https://picsum.photos/seed/user/100/100" /></div>
+        <div className="flex items-center gap-6">
+          <div className="bg-amber-50 px-5 py-2 rounded-2xl border border-amber-100 font-black text-amber-700">✨ {xp}</div>
         </div>
       </nav>
 
-      <main className="container mx-auto flex-1">
+      <main className="max-w-6xl mx-auto px-6">
         {loading ? (
-          <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 animate-in fade-in">
-             <div className="w-20 h-20 bg-indigo-100 rounded-3xl mb-6 flex items-center justify-center"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>
-             <h2 className="text-2xl font-bold mb-2">Building Your Analogy Bridge...</h2>
+          <div className="min-h-[70vh] flex flex-col items-center justify-center section-enter">
+            <div className="text-9xl mb-12 animate-bounce">🧬</div>
+            <h2 className="text-5xl font-black text-center">Architecting Neural Frontier...</h2>
           </div>
         ) : (
           <>
-            {state === GameState.HOME && <HomeScreen onStart={() => setState(GameState.SETUP)} onCustomize={() => setState(GameState.MASCOT_EDIT)} />}
-            {state === GameState.SETUP && <SetupScreen onConfirm={setupGame} onBack={() => setState(GameState.HOME)} />}
-            {state === GameState.QUIZ && session.questions.length > 0 && <QuizScreen question={session.questions[session.currentIndex]} index={session.currentIndex} total={session.questions.length} goal={session.goal} familiarIcon={session.familiarDomain?.icon || '💡'} onAnswer={submitAnswer} onImageGenerated={(url) => setSession(prev => { const n = [...prev.questions]; n[prev.currentIndex].imageUrl = url; return {...prev, questions: n}; })} />}
-            {state === GameState.REVEAL && <RevealScreen question={session.questions[session.currentIndex]} selectedAnswer={lastSelectedAnswer} onNext={nextQuestion} />}
-            {state === GameState.SUMMARY && <SummaryScreen session={session} onReset={resetGame} />}
-            {state === GameState.MASCOT_EDIT && <MascotScreen onBack={() => setState(GameState.HOME)} />}
+            {state === GameState.HOME && (
+              <div className="py-24 text-center section-enter">
+                <h1 className="text-7xl font-black mb-10 leading-[0.9]">Learn by <span className="text-indigo-600 underline">Analogy.</span></h1>
+                <p className="text-2xl text-slate-500 mb-20 max-w-2xl mx-auto">Map your existing expertise to high-frontier concepts through guided neural syncs.</p>
+                <Button onClick={() => setState(GameState.SETUP)} size="lg" className="h-28 px-24 text-3xl rounded-full">Enter Frontier</Button>
+              </div>
+            )}
+
+            {state === GameState.SETUP && (
+              <div className="py-16 max-w-4xl mx-auto section-enter">
+                <h2 className="text-5xl font-black mb-20 text-center">Expedition Config</h2>
+                <div className="space-y-16">
+                  <section className="bg-white p-12 rounded-[4rem] shadow-xl border border-slate-100">
+                    <h3 className="text-xs font-black uppercase text-indigo-400 mb-8 tracking-[0.4em]">1 ANCHOR (YOUR STRENGTH)</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                      {FAMILIAR_CATEGORIES.flatMap(c => c.items).map(d => (
+                        <button key={d.id} onClick={() => setSession(p => ({ ...p, familiarDomain: d }))} className={`p-8 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-4 ${session.familiarDomain?.id === d.id ? 'border-indigo-600 bg-indigo-50' : 'border-slate-50'}`}>
+                          <span className="text-5xl">{d.icon}</span>
+                          <span className="font-black text-sm">{d.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="bg-white p-12 rounded-[4rem] shadow-xl border border-slate-100">
+                    <h3 className="text-xs font-black uppercase text-emerald-400 mb-8 tracking-[0.4em]">2 FRONTIER (THE UNKNOWN)</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                      {COMPLEX_CATEGORIES.flatMap(c => c.items).map(d => (
+                        <button key={d.id} onClick={() => setSession(p => ({ ...p, complexDomain: d, goal: "" }))} className={`p-8 rounded-[2.5rem] border-4 transition-all flex flex-col items-center gap-4 ${session.complexDomain?.id === d.id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-50'}`}>
+                          <span className="text-5xl">{d.icon}</span>
+                          <span className="font-black text-sm">{d.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                  {session.complexDomain && (
+                    <div className="bg-slate-900 p-12 rounded-[4rem] section-enter">
+                      <h3 className="text-white text-xs font-black mb-8 text-center uppercase tracking-[0.5em]">OBJECTIVE</h3>
+                      <div className="grid gap-4">
+                        {session.complexDomain.suggestedGoals?.map(g => (
+                          <button key={g} onClick={() => setSession(p => ({ ...p, goal: g }))} className={`p-6 text-left rounded-[2rem] font-black transition-all ${session.goal === g ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white'}`}>{g}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <Button disabled={!session.goal} onClick={() => setupGame(session.familiarDomain!, session.complexDomain!, session.goal)} className="w-full h-24 text-2xl rounded-full">Initialize Sync</Button>
+                </div>
+              </div>
+            )}
+
+            {state === GameState.MAP && <MissionMap session={session} onProceed={() => setState(session.currentIndex === 0 ? GameState.BRIEFING : GameState.STEP_PRIME)} />}
+
+            {state === GameState.BRIEFING && session.mission && (
+               <div className="py-24 max-w-4xl mx-auto section-enter text-center">
+                  <div className="bg-white p-24 rounded-[5rem] shadow-2xl border-b-[20px] border-slate-100">
+                     <h2 className="text-6xl font-black mb-10">{session.mission.briefing.title}</h2>
+                     <p className="text-3xl text-slate-400 mb-16 font-bold italic">"{session.mission.briefing.scenario}"</p>
+                     <Button onClick={() => setState(GameState.STEP_PRIME)} size="lg" className="w-full h-24 text-3xl rounded-full">Begin Set 1</Button>
+                  </div>
+               </div>
+            )}
+
+            {state === GameState.WORD_SYNC && currentModule && (
+              <WordSync familiar={currentModule.bridgeKeywords.familiar} complex={currentModule.bridgeKeywords.complex} onComplete={() => setState(GameState.STEP_BRIDGE)} />
+            )}
+
+            {(state === GameState.STEP_PRIME || state === GameState.STEP_BRIDGE || state === GameState.STEP_INFER || state === GameState.STEP_REINFORCE || state === GameState.STEP_CAPSTONE) && currentModule && (
+              <QuestionCard 
+                title={currentModule.conceptName} 
+                badge={state.replace('STEP_', '')}
+                icon={state === GameState.STEP_PRIME ? '🧠' : '🔍'}
+                data={
+                  state === GameState.STEP_PRIME ? currentModule.prime : 
+                  state === GameState.STEP_BRIDGE ? currentModule.bridge : 
+                  state === GameState.STEP_INFER ? currentModule.infer : 
+                  state === GameState.STEP_REINFORCE ? currentModule.reinforce : currentModule.capstone
+                } 
+                onAnswer={handleAnswer}
+                setMascot={setMascotStatus}
+              />
+            )}
+
+            {state === GameState.SYNTHESIS && currentModule && (
+              <div className="max-w-4xl mx-auto py-24 text-center section-enter">
+                <div className="bg-white p-24 rounded-[5rem] shadow-2xl border-b-[24px] border-emerald-50 mb-16">
+                  <h4 className="text-emerald-500 font-black uppercase tracking-[0.5em] mb-8">SET STABILIZED</h4>
+                  <h3 className="text-5xl font-black italic mb-16">"{currentModule.synthesis}"</h3>
+                  <Button onClick={() => {
+                    const nextIdx = session.currentIndex + 1;
+                    if (nextIdx < (session.mission?.modules.length || 0)) {
+                      setSession(p => ({ ...p, currentIndex: nextIdx }));
+                      setState(GameState.MAP);
+                    } else { setState(GameState.FINAL_CHALLENGE); }
+                  }} className="w-full h-24 text-3xl rounded-full bg-emerald-500">Secure Node</Button>
+                </div>
+              </div>
+            )}
+
+            {state === GameState.FINAL_CHALLENGE && session.mission && (
+              <QuestionCard title="Expedition Mastery" badge="Final Protocol" icon="🔭" data={session.mission.finalChallenge} onAnswer={handleAnswer} setMascot={setMascotStatus} />
+            )}
+
+            {state === GameState.SUMMARY && (
+              <div className="py-24 text-center max-w-5xl mx-auto section-enter">
+                <h1 className="text-8xl font-black mb-8 tracking-tighter">Frontier Stabilized!</h1>
+                <div className="grid md:grid-cols-3 gap-10 mb-24">
+                  <div className="bg-white p-12 rounded-[4rem] shadow-2xl"><div className="text-8xl font-black text-indigo-600">{xp}</div><div className="text-xs uppercase font-black opacity-30 mt-4">Total XP</div></div>
+                  <div className="bg-white p-12 rounded-[4rem] shadow-2xl"><div className="text-8xl font-black text-emerald-500">{session.mission?.modules.length}</div><div className="text-xs uppercase font-black opacity-30 mt-4">Sets Mastered</div></div>
+                  <div className="bg-white p-12 rounded-[4rem] shadow-2xl"><div className="text-8xl font-black text-amber-500">{level}</div><div className="text-xs uppercase font-black opacity-30 mt-4">Current Rank</div></div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <Button onClick={() => setState(GameState.HOME)} size="lg" className="h-28 px-20 text-3xl rounded-full">New Expedition</Button>
+                  <Button onClick={handleDownloadMission} variant="outline" size="lg" className="h-28 px-12 text-xl rounded-full border-indigo-200 text-indigo-600">Download Mission Archive</Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
-      <footer className="text-center text-slate-300 text-xs py-8 mt-auto font-medium tracking-widest uppercase">&copy; 2024 Playner Analogical Engine.</footer>
     </div>
   );
 }
+
+const QuestionCard: React.FC<{ title: string; badge: string; icon: string; data: ModuleStep; onAnswer: (correct: boolean, e: any) => void; setMascot: (s: any) => void; }> = ({ title, badge, icon, data, onAnswer, setMascot }) => {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [isRevealing, setIsRevealing] = useState(false);
+  const handleVerify = (e: React.MouseEvent) => {
+    if (!selected || isRevealing) return;
+    setIsRevealing(true);
+    setMascot('scanning');
+    const correct = selected === data.correctAnswer;
+    setTimeout(() => {
+      setMascot(correct ? 'correct' : 'incorrect');
+      setTimeout(() => {
+        onAnswer(correct, e);
+        setSelected(null);
+        setIsRevealing(false);
+        setMascot('idle');
+      }, 1500);
+    }, 1000);
+  };
+  return (
+    <div className="max-w-4xl mx-auto py-12 px-4 section-enter">
+      <div className="mb-12 flex items-center justify-between">
+        <div className="px-6 py-2 bg-indigo-600 text-white rounded-full text-xs font-black uppercase tracking-[0.3em]">{badge}</div>
+        <div className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">{title}</div>
+      </div>
+      <div className="bg-white p-16 rounded-[4rem] shadow-2xl mb-12 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 text-[15rem] opacity-5">{icon}</div>
+        <h2 className="text-4xl md:text-5xl font-black leading-tight relative z-10">{data.question}</h2>
+        {data.known_concept && <div className="mt-8 text-xs font-black text-slate-300 uppercase tracking-widest">Targeting: {data.known_concept}</div>}
+      </div>
+      <div className="grid gap-6 mb-40">
+        {data.options.map((opt, i) => (
+          <button key={i} disabled={isRevealing} onClick={() => setSelected(opt)} className={`w-full p-8 text-left rounded-[2.5rem] border-4 transition-all font-black text-2xl ${selected === opt ? 'border-indigo-600 bg-indigo-50 shadow-xl' : 'border-white bg-white hover:border-indigo-100'}`}>
+            <span className="mr-6 opacity-30">{String.fromCharCode(65+i)}.</span> {opt}
+          </button>
+        ))}
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 p-12 bg-white/80 backdrop-blur border-t-2 z-[120] flex justify-center">
+        <Button onClick={handleVerify} disabled={!selected || isRevealing} isLoading={isRevealing} className="w-full max-w-xl h-24 text-3xl rounded-full">Commit Synapse</Button>
+      </div>
+    </div>
+  );
+};

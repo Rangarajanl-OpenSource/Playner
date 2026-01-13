@@ -1,0 +1,231 @@
+
+{
+  "lego_blockchain_proof-of-work-explained": {
+    "briefing": {
+      "title": "Operation: Digital Lego Fortress",
+      "scenario": "You are building a decentralized city where every citizen must agree on the layout. To prevent cheating, we use a 'Physical Effort' verification system.",
+      "objective": "Understand how physical 'work' creates digital trust without a central authority."
+    },
+    "modules": [
+      {
+        "id": "lego_pow_m1",
+        "conceptName": "The Scavenger Hunt Proof",
+        "priming": {
+          "question": "In a bucket of 10,000 bricks, which task proves you actually spent time looking?",
+          "options": ["Picking a random brick", "Finding the only 1x1 glowing stud", "Dumping the bucket", "Buying a new kit"],
+          "correctAnswer": "Finding the only 1x1 glowing stud",
+          "explanation": "Finding a specific rare piece takes effort (work), but once found, it is instantly obvious to others that the work was done."
+        },
+        "analogy": {
+          "question": "How does a computer 'mine' a block in Proof of Work?",
+          "options": ["By guessing millions of numbers to find a rare 'Hash'", "By downloading data", "By asking permission", "By sleeping"],
+          "correctAnswer": "By guessing millions of numbers to find a rare 'Hash'",
+          "explanation": "Hashing is the digital scavenger hunt for computers. The 'Hash' is the rare glowing stud."
+        },
+        "reinforcement": {
+          "question": "What is the 'Difficulty Adjustment' in this system?",
+          "options": ["Making the target smaller as computers get faster", "Adding more bricks", "Removing users", "Changing the coin price"],
+          "correctAnswer": "Making the target smaller as computers get faster",
+          "explanation": "It ensures blocks are found at a steady rate regardless of hardware power, keeping the 'hunt' fair."
+        },
+        "synthesis": "Mining is a digital scavenger hunt where effort equals security."
+      }
+    ],
+    "finalChallenge": {
+      "question": "If a hacker changes an old block, why must they re-do the hunt for all subsequent blocks?",
+      "options": ["Because they are linked by hashes", "Because the internet is slow", "Because they get banned", "They don't have to"],
+      "correctAnswer": "Because they are linked by hashes",
+      "explanation": "Changing history breaks the 'scavenger hunt' logic for every block that follows due to the interlocking cryptographic link."
+    }
+  },
+  "cooking_crm-tools_understand-the-sales-funnel": {
+    "briefing": {
+      "title": "The Master Chef's Pipeline",
+      "scenario": "You are the head chef of a high-end restaurant. You need to turn raw ingredients into happy, paying customers at the tables.",
+      "objective": "Map the journey of raw leads to loyal customers using kitchen workflow logic."
+    },
+    "modules": [
+      {
+        "id": "cook_crm_m1",
+        "conceptName": "Ingredients to Plated Meals",
+        "priming": {
+          "question": "What are the raw inputs needed before a chef can start cooking?",
+          "options": ["The bill", "Raw groceries and ingredients", "Clean plates", "A menu"],
+          "correctAnswer": "Raw groceries and ingredients",
+          "explanation": "Ingredients are the raw potential for a meal, but they aren't revenue yet."
+        },
+        "analogy": {
+          "question": "In a Sales Funnel, what are 'Leads' compared to a kitchen?",
+          "options": ["The finished meal", "Raw contact information of potential customers", "The marketing budget", "The restaurant owner"],
+          "correctAnswer": "Raw contact information of potential customers",
+          "explanation": "Leads are your 'raw groceries'. You have to prep and cook them (engage them) to get a result."
+        },
+        "reinforcement": {
+          "question": "What is 'Lead Qualification' (MQL) in this kitchen analogy?",
+          "options": ["Sorting ingredients to see which are fresh enough to cook", "Plating the food", "Cleaning the floor", "Taking the order"],
+          "correctAnswer": "Sorting ingredients to see which are fresh enough to cook",
+          "explanation": "Just as you toss out rotten produce, qualification filters out 'bad leads' unlikely to buy."
+        },
+        "synthesis": "The Sales Funnel is a kitchen pipeline; Leads are groceries that must be prepped."
+      }
+    ],
+    "finalChallenge": {
+      "question": "A customer orders a steak but hasn't paid yet. In CRM terms, what stage of the funnel are they in?",
+      "options": ["Lead", "Prospect/Negotiation", "Sale Closed", "Lost Lead"],
+      "correctAnswer": "Prospect/Negotiation",
+      "explanation": "The 'order' (Deal) is active and being 'cooked' (processed), but the revenue isn't final until the bill is paid."
+    }
+  },
+  "rpg-games_stock-market_market-volatility": {
+    "briefing": {
+      "title": "The Level 99 Market Raid",
+      "scenario": "The game developers just released a surprise balance patch. The price of 'Mana Potions' is swinging wildly as players react.",
+      "objective": "Understand why stock prices jump and crash using RPG patch note logic."
+    },
+    "modules": [
+      {
+        "id": "rpg_stock_m1",
+        "conceptName": "The Patch Note Hype",
+        "priming": {
+          "question": "If a patch 'buffs' a character class, what happens to the price of that class's specialized gear?",
+          "options": ["It drops", "It stays the same", "It skyrockets due to high demand", "The items are deleted"],
+          "correctAnswer": "It skyrockets due to high demand",
+          "explanation": "New information changes the perceived value and demand for items instantly."
+        },
+        "analogy": {
+          "question": "What is 'Market Volatility' compared to a patch note?",
+          "options": ["Predictable growth", "Rapid, unpredictable price swings based on news/hype", "Buying a new game", "Steady decline"],
+          "correctAnswer": "Rapid, unpredictable price swings based on news/hype",
+          "explanation": "Volatility is the 'speed of change'. It's the drama of the market reacting to 'real-world patch notes'."
+        },
+        "reinforcement": {
+          "question": "Which represents 'High Volatility' in a stock portfolio?",
+          "options": ["A stable bank bond", "A tech startup swinging 15% daily", "A savings account", "A physical gold bar"],
+          "correctAnswer": "A tech startup swinging 15% daily",
+          "explanation": "Like a 'broken' class in an RPG, high volatility means the price is in constant flux as players fight over it."
+        },
+        "synthesis": "Volatility is just the 'Patch Note Drama' of the finance world."
+      }
+    ],
+    "finalChallenge": {
+      "question": "An investor 'Panic Sells' during a dip. In RPG terms, this is most like:",
+      "options": ["Deleting your character", "Vendor-selling your legendary sword because you saw a fake nerf rumor", "Buying more mana", "Leveling up"],
+      "correctAnswer": "Vendor-selling your legendary sword because you saw a fake nerf rumor",
+      "explanation": "Panic selling is acting on short-term fear (volatility) rather than long-term stats (fundamentals)."
+    }
+  },
+  "driving_quantum-physics_explain-superposition": {
+    "briefing": {
+      "title": "The Quantum Traffic Jam",
+      "scenario": "You are navigating a city where cars exist in all possible lanes simultaneously until a traffic camera takes a photo.",
+      "objective": "Master the logic of Superposition using traffic navigation analogies."
+    },
+    "modules": [
+      {
+        "id": "drive_q_m1",
+        "conceptName": "The Unobserved Lane",
+        "priming": {
+          "question": "If you are driving and haven't looked at the intersection ahead, how many possible paths could you potentially take?",
+          "options": ["Only one", "All available directions simultaneously", "Zero", "Only left"],
+          "correctAnswer": "All available directions simultaneously",
+          "explanation": "Until you commit to a turn, your destination is a range of probabilities in your mind."
+        },
+        "analogy": {
+          "question": "In Quantum Physics, what is 'Superposition'?",
+          "options": ["A particle being in multiple states at once until measured", "A particle moving fast", "A particle stopping", "A particle glowing"],
+          "correctAnswer": "A particle being in multiple states at once until measured",
+          "explanation": "Like a car before the turn, a quantum bit (qubit) exists as both 0 and 1 until observed."
+        },
+        "reinforcement": {
+          "question": "What happens to a Qubit when we 'Measure' it?",
+          "options": ["It collapses into one definite state", "It gets faster", "It disappears", "It doubles"],
+          "correctAnswer": "It collapses into one definite state",
+          "explanation": "Measurement forces reality to choose a single path, like finally making the left turn at the intersection."
+        },
+        "synthesis": "Superposition is being in all 'lanes' at once until you check the GPS."
+      }
+    ],
+    "finalChallenge": {
+      "question": "A quantum computer uses superposition to solve a maze. How does it navigate compared to a normal car?",
+      "options": ["It drives every path at the same time to find the exit", "It drives faster", "It has a better map", "It doesn't need gas"],
+      "correctAnswer": "It drives every path at the same time to find the exit",
+      "explanation": "Superposition allows it to explore all possible routes simultaneously, finding the solution in one 'tick'."
+    }
+  },
+  "gardening_blockchain_what-is-a-ledger": {
+    "briefing": {
+      "title": "The Community Garden Record",
+      "scenario": "Every gardener in the neighborhood shares a public notebook to record who planted what and where.",
+      "objective": "Understand the concept of a Distributed Ledger using a public garden log."
+    },
+    "modules": [
+      {
+        "id": "garden_block_m1",
+        "conceptName": "The Shared Notebook",
+        "priming": {
+          "question": "If everyone has their own copy of the garden map, and I try to draw a tree on mine that isn't there, what happens when we meet?",
+          "options": ["The tree appears", "Everyone sees mine is different and rejects it", "My map becomes the new rule", "The garden disappears"],
+          "correctAnswer": "Everyone sees mine is different and rejects it",
+          "explanation": "Trust comes from the majority of copies matching."
+        },
+        "analogy": {
+          "question": "What is a 'Distributed Ledger' in Blockchain?",
+          "options": ["A single secret file", "A shared database that everyone has a copy of and verifies", "A type of crypto coin", "A cloud server owned by Google"],
+          "correctAnswer": "A shared database that everyone has a copy of and verifies",
+          "explanation": "Like the garden notebook, the ledger is public and distributed so no one can secretly change it."
+        },
+        "reinforcement": {
+          "question": "How does a transaction get 'Confirmed' on the ledger?",
+          "options": ["By one person signing it", "By the majority of nodes (gardeners) agreeing it matches the rules", "By deleting old data", "By paying the mayor"],
+          "correctAnswer": "By the majority of nodes (gardeners) agreeing it matches the rules",
+          "explanation": "Consensus ensures that only valid 'planting entries' (transactions) are added to the official record."
+        },
+        "synthesis": "A Ledger is just a shared notebook where everyone checks each other's work."
+      }
+    ],
+    "finalChallenge": {
+      "question": "If a hacker 'double spends' a coin, what are they essentially doing in the Garden Notebook?",
+      "options": ["Planting two seeds", "Trying to write that they planted a flower in two different spots using the same single seed", "Watering someone else's plant", "Buying a new notebook"],
+      "correctAnswer": "Trying to write that they planted a flower in two different spots using the same single seed",
+      "explanation": "The ledger prevents this because other gardeners see the first entry and reject the second one for the same 'seed'."
+    }
+  },
+  "social-media_advanced-math_derivatives-made-simple": {
+    "briefing": {
+      "title": "The Virality Velocity",
+      "scenario": "You are tracking a post on 'InstaGram'. You don't just care how many likes you have; you care how fast those likes are coming in *right now*.",
+      "objective": "Understand Calculus Derivatives using the 'rate of change' of social media engagement."
+    },
+    "modules": [
+      {
+        "id": "social_math_m1",
+        "conceptName": "Speed vs. Position",
+        "priming": {
+          "question": "If your post has 1,000 likes at 12 PM and 1,200 likes at 1 PM, what changed?",
+          "options": ["The total count only", "The count and the rate of 200 likes/hour", "Nothing", "The photo changed"],
+          "correctAnswer": "The count and the rate of 200 likes/hour",
+          "explanation": "There's a difference between 'where you are' and 'how fast you're moving'."
+        },
+        "analogy": {
+          "question": "In Calculus, what is a 'Derivative'?",
+          "options": ["The total area", "The exact rate of change at a single moment", "The name of the variable", "A complex number"],
+          "correctAnswer": "The exact rate of change at a single moment",
+          "explanation": "A derivative is like the speedometer on your post's virality. It tells you the 'instant' speed of engagement."
+        },
+        "reinforcement": {
+          "question": "If the Derivative of your 'Like' graph is Zero, what is happening to your post?",
+          "options": ["It is going viral", "The number of likes has stopped growing", "It is losing likes", "The graph is invisible"],
+          "correctAnswer": "The number of likes has stopped growing",
+          "explanation": "Zero rate of change means the 'speed' is zero; the total count is standing still."
+        },
+        "synthesis": "A Derivative is the 'Speedometer' of any changing value."
+      }
+    ],
+    "finalChallenge": {
+      "question": "Your post's likes are increasing, but the *rate* of increase is slowing down. In Calculus terms, the first derivative is positive, but the second derivative is:",
+      "options": ["Positive", "Negative", "Zero", "Infinite"],
+      "correctAnswer": "Negative",
+      "explanation": "A negative second derivative (acceleration) means you are still moving forward, but you are hitting the brakes."
+    }
+  }
+}

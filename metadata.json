@@ -1,7 +1,5 @@
 {
   "name": "Playner - Analogical Learning",
   "description": "Playner helps you master complex concepts by mapping them to things you already know through playful analogies and interactive quizzes.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }
