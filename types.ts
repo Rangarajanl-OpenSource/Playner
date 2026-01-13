@@ -7,6 +7,7 @@ export interface ModuleStep {
   known_concept?: string;
   glean_concept?: string;
   learning_intent?: string;
+  tip?: string;
 }
 
 export interface NeuralModule {

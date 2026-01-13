@@ -3,16 +3,11 @@ import { DomainOption, MissionData } from "./types";
 import questionBank from "./questionBank";
 
 export const ENABLE_API_CACHE = true;
-export const ENABLE_CLOUD_STORAGE = false; // Set to true only after updating FIREBASE_CONFIG
+export const ENABLE_CLOUD_STORAGE = false;
 export const ENABLE_ANALYTICS = true;
-
 export const FIREBASE_CONFIG = {
   apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
   projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
 };
 
 export interface DomainCategory {
@@ -22,59 +17,66 @@ export interface DomainCategory {
 
 export const FAMILIAR_CATEGORIES: DomainCategory[] = [
   {
-    title: "Engineering",
+    title: "Classic Games",
     items: [
-      { id: 'llm', label: 'LLM Internals', icon: '🧠', description: 'RAG, Embeddings, and Transformers', keywords: ['Vector', 'Chunk', 'Context Window', 'Token', 'Prompt', 'Attention', 'Embedding'] },
-      { id: 'cook', label: 'Cooking', icon: '🍳', description: 'Recipes, seasoning, and heat', keywords: ['Spatula', 'Simmer', 'Ingredient', 'Whisk', 'Chef', 'Menu', 'Plate'] },
-      { id: 'drive', label: 'Driving', icon: '🚗', description: 'Traffic, rules, and navigation', keywords: ['Lane', 'Accelerator', 'GPS', 'Merging', 'Steering', 'Traffic Light', 'Gear'] }
+      { id: 'tictactoe', label: 'Tic-Tac-Toe', icon: '❌', description: 'Patterns and strategy', keywords: ['Grid', 'Strategy', 'Draw'] },
+      { id: 'rps', label: 'Rock Paper Scissors', icon: '✊', description: 'Cycles and probability', keywords: ['Cycle', 'Outcome', 'Random'] },
     ]
   },
   {
-    title: "Digital & Play",
+    title: "Hobbies",
     items: [
-      { id: 'rpg', label: 'RPG Games', icon: '⚔️', description: 'Levels, skill trees, and mana', keywords: ['Mana', 'EXP', 'Loot', 'Dungeon', 'Quest', 'Buff', 'Nerf', 'Inventory'] },
-      { id: 'social', label: 'Social Media', icon: '📱', description: 'Feeds, engagement, and virality', keywords: ['Hashtag', 'Feed', 'Share', 'Algorithm', 'DM', 'Follower', 'Viral'] },
-      { id: 'lego', label: 'Lego', icon: '🧱', description: 'Bricks, stability, and modules', keywords: ['Stud', 'Plate', 'Clutch', 'Manual', 'Bin', 'Build', 'Modular'] }
+      { id: 'gaming', label: 'Video Games', icon: '🎮', description: 'XP and loot mechanics', keywords: ['Buff', 'Patch', 'Raid'] },
+      { id: 'lego', label: 'Lego Building', icon: '🧱', description: 'Modular instructions', keywords: ['Clutch', 'Plate', 'Modular'] },
+      { id: 'cook', label: 'Cooking', icon: '🍳', description: 'Recipes and reactions', keywords: ['Spatula', 'Simmer', 'Ingredient'] },
+    ]
+  },
+  {
+    title: "School Life",
+    items: [
+      { id: 'english', label: 'English Grammar', icon: '📝', description: 'Nouns and syntax', keywords: ['Subject', 'Verb', 'Adjective'] },
+      { id: 'math', label: 'Basic Math', icon: '🔢', description: 'Arithmetic and logic', keywords: ['Sum', 'Fraction', 'Variable'] },
     ]
   }
 ];
 
 export const COMPLEX_CATEGORIES: DomainCategory[] = [
   {
-    title: "Enterprise Architecture",
+    title: "New Frontiers",
     items: [
       { 
-        id: 'glean', label: 'Glean Internals', icon: '🔍', description: 'Enterprise Search & Knowledge Graph',
-        keywords: ['Index', 'ACL', 'Recrawl', 'Signals', 'Boosting', 'Entity', 'Graph'],
-        suggestedGoals: ['Master Enterprise Search Architecture', 'Permissions as a Constraint', 'Source Freshness & Drift']
+        id: 'finance', label: 'Economics', icon: '📈', description: 'Markets and value',
+        keywords: ['Inflation', 'Supply', 'Demand', 'Volatility'],
+        suggestedGoals: ['Market Volatility Explained', 'Understand the Sales Funnel']
       },
       { 
-        id: 'blockchain', label: 'Blockchain', icon: '⛓️', description: 'Ledgers and consensus',
-        keywords: ['Hash', 'Node', 'Ledger', 'Mining', 'Smart Contract', 'Decentralized', 'Gas'],
-        suggestedGoals: ['What is a Ledger?', 'Proof of Work explained', 'Smart Contracts']
+        id: 'spanish', label: 'Spanish Basics', icon: '🌮', description: 'The logic of a new language',
+        keywords: ['Conjugation', 'Gender', 'Tú vs Usted'],
+        suggestedGoals: ['Master Basic Sentence Structure']
       }
     ]
   },
   {
-    title: "Systems & Frontiers",
+    title: "Future Tech",
     items: [
       { 
-        id: 'crm', label: 'CRM Tools', icon: '💼', description: 'Leads, pipelines, and funnels',
-        keywords: ['Pipeline', 'Lead', 'MQL', 'Conversion', 'Prospect', 'SaaS', 'Funnel'],
-        suggestedGoals: ['Understand the Sales Funnel', 'Leads vs Contacts', 'Automating follow-ups']
+        id: 'quantum', label: 'Quantum Physics', icon: '⚛️', description: 'Probability and reality',
+        keywords: ['Superposition', 'Entanglement', 'Qubit'],
+        suggestedGoals: ['Explain Superposition', 'Schrodinger\'s Cat']
       },
       { 
-        id: 'stocks', label: 'Stock Market', icon: '📈', description: 'Volatility and value',
-        keywords: ['Yield', 'Volatility', 'Portfolio', 'Ticker', 'Bear Market', 'Dividend', 'Equity'],
-        suggestedGoals: ['Explain "Buying the Dip"', 'How dividends work', 'Market Volatility']
-      },
-      { 
-        id: 'quantum', label: 'Quantum Physics', icon: '⚛️', description: 'Reality and probability',
-        keywords: ['Superposition', 'Entanglement', 'Qubit', 'Waveform', 'Observer', 'Photon', 'Spin'],
-        suggestedGoals: ['Explain Superposition', 'Entanglement', 'Schrodinger\'s Cat']
+        id: 'glean', label: 'Glean Internals', icon: '🔍', description: 'AI Enterprise Search',
+        keywords: ['ACL', 'RAG', 'Vector Index'],
+        suggestedGoals: ['Master Enterprise Search Architecture']
       }
     ]
   }
+];
+
+export const TRENDING_MISSIONS = [
+  { familiar: 'tictactoe', complex: 'finance', goal: 'Market Volatility Explained', label: 'The Winning Move', color: 'indigo' },
+  { familiar: 'rps', complex: 'quantum', goal: 'Explain Superposition', label: 'Probability Rumble', color: 'emerald' },
+  { familiar: 'gaming', complex: 'finance', goal: 'Market Volatility Explained', label: 'Level Up Your Finance', color: 'indigo' },
 ];
 
 export const PRECOMPUTED_STORE: Record<string, MissionData> = questionBank;
